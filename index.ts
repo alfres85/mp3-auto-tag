@@ -9,7 +9,7 @@ import fs from 'fs';
 
 import PQueue from 'p-queue';
 
-async function run() {
+async function run(processedFiles: Set<string>) {
   const target = process.argv[2] || './music';
 
   log.info(`Scanning: ${target}`);
@@ -18,8 +18,17 @@ async function run() {
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
-    log.info(`(${i + 1}/${files.length}) Processing: ${file}`);
+    if (processedFiles.has(file)) continue;
+
     let tag = readTag(file);
+
+    if (tag.image) {
+      log.info(`(${i + 1}/${files.length}) Skipping: ${file} (Cover already exists)`);
+      processedFiles.add(file);
+      continue;
+    }
+
+    log.info(`(${i + 1}/${files.length}) Processing: ${file}`);
 
     if (!tag.artist || !tag.album) {
       log.info('Missing metadata, attempting to fetch from filename');
@@ -57,17 +66,14 @@ async function run() {
 
     if (!tag.artist || !tag.album) {
       log.warn('Still missing metadata, skipping cover search');
-      continue;
-    }
-
-    if (tag.image) {
-      log.info('Cover already exists');
+      processedFiles.add(file);
       continue;
     }
 
     const coverPath = await resolveCover(tag.artist, tag.album);
     if (!coverPath) {
       log.warn('No cover found');
+      processedFiles.add(file);
       continue;
     }
 
@@ -75,7 +81,24 @@ async function run() {
     writeCover(file, img);
 
     log.success('Cover embedded');
+    processedFiles.add(file);
   }
 }
 
-run().catch((err) => log.error(String(err)));
+async function main() {
+  const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+  const processedFiles = new Set<string>();
+
+  while (true) {
+    try {
+      await run(processedFiles);
+      break; // Exit loop if run() completes successfully
+    } catch (err) {
+      log.error(`Fatal error: ${String(err)}`);
+      log.info(`Restarting process in 5 minutes...`);
+      await new Promise((resolve) => setTimeout(resolve, COOLDOWN_MS));
+    }
+  }
+}
+
+main().catch((err) => log.error(String(err)));
