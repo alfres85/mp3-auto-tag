@@ -1,4 +1,4 @@
-# MP3 Auto Cover Tool
+# MP3 Auto Tag
 
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![Language](https://img.shields.io/badge/language-Typescript-blue)
