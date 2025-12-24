@@ -16,8 +16,9 @@ async function run() {
   const files = await scanForMp3(target);
   log.info(`Found ${files.length} MP3 files`);
 
-  for (const file of files) {
-    log.info(`Processing: ${file}`);
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    log.info(`(${i + 1}/${files.length}) Processing: ${file}`);
     let tag = readTag(file);
 
     if (!tag.artist || !tag.album) {
